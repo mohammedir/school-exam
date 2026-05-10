@@ -17,6 +17,8 @@ class CreateExamsTable extends Migration
             $table->id();
             $table->foreignId('teacher_id')->constrained('teachers')->onDelete('cascade');
             $table->string('title');
+            $table->enum('target_category', ['scientific', 'literary', 'both'])
+                ->default('both');
             $table->date('scheduled_at');
             $table->string('subject');
             $table->integer('duration_minutes'); // مدة الاختبار

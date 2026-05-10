@@ -224,7 +224,19 @@
                         <input type="number" id="exam_duration" class="form-control custom-input" value="30">
                     </div>
                 </div>
-
+                <!-- الصف الجديد للفئة المستهدفة -->
+                <div class="row g-4 mb-4">
+                    <div class="col-md-12">
+                        <label class="form-label fw-bold">
+                            <i class="fas fa-users me-1"></i>الفئة المستهدفة
+                        </label>
+                        <select id="target_category" class="form-select custom-input">
+                            <option value="both">الاثنين (علمي وأدبي)</option>
+                            <option value="scientific">علمي</option>
+                            <option value="literary">أدبي</option>
+                        </select>
+                    </div>
+                </div>
                 <div class="mb-4">
                     <div class="d-flex justify-content-between align-items-center mb-3">
                         <label class="form-label fw-bold fs-5 mb-0">
@@ -649,6 +661,7 @@
         document.getElementById('exam_title').value = exam.title;
         document.getElementById('exam_date').value = exam.scheduled_at;
         document.getElementById('exam_duration').value = exam.duration_minutes;
+        document.getElementById('target_category').value = exam.target_category;
 
         // Clear existing questions
         const container = document.getElementById('questions-container');
@@ -684,6 +697,7 @@
         document.getElementById('exam_title').value = '';
         document.getElementById('exam_date').value = '';
         document.getElementById('exam_duration').value = '30';
+        document.getElementById('target_category').value = '';
 
         const container = document.getElementById('questions-container');
         container.innerHTML = '';
@@ -709,6 +723,7 @@
             const title = document.getElementById('exam_title').value.trim();
             const date = document.getElementById('exam_date').value;
             const duration = document.getElementById('exam_duration').value;
+            const target_category = document.getElementById('target_category').value;
 
             if (!title) {
                 showToast('يرجى إدخال عنوان الاختبار');
@@ -725,6 +740,7 @@
             const payload = {
                 title: title,
                 date: date,
+                target_category: target_category,
                 duration: parseInt(duration),
                 questions: questions,
                 _token: document.querySelector('meta[name="csrf-token"]').getAttribute('content')

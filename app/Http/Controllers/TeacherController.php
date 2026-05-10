@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Admin;
 use App\Models\Result;
 use App\Models\Student;
 use App\Models\Teacher;
@@ -70,6 +71,7 @@ class TeacherController extends Controller
                     'teacher_id' => Auth::id(),
                     'title' => $request->title,
                     'scheduled_at' => $request->date,
+                    'target_category' => $request->target_category,
                     'duration_minutes' => $request->duration,
                     'subject' => Auth::user()->subject ?? 'عام',
                     'is_published' => false,
@@ -121,6 +123,7 @@ class TeacherController extends Controller
                 $exam->update([
                     'title' => $request->title,
                     'scheduled_at' => $request->date,
+                    'target_category' => $request->target_category,
                     'duration_minutes' => $request->duration,
                 ]);
 
@@ -166,6 +169,7 @@ class TeacherController extends Controller
                 'id' => $exam->id,
                 'title' => $exam->title,
                 'scheduled_at' => $scheduled_at, // استخدام التنسيق الصحيح
+                'target_category' => $exam->target_category,
                 'duration_minutes' => $exam->duration_minutes,
                 'is_published' => $exam->is_published,
                 'subject' => $exam->subject,
@@ -199,7 +203,8 @@ class TeacherController extends Controller
                 'message' => 'حدث خطأ أثناء جلب بيانات الاختبار: ' . $e->getMessage()
             ], 500);
         }
-    }        // حذف الاختبار
+    }
+    // حذف الاختبار
     public function examDelete($id)
     {
         try {
@@ -243,11 +248,17 @@ class TeacherController extends Controller
     {
         $exam = Exam::with('questions')->findOrFail($id);
 
-        // التحقق من أن المعلم هو صاحب الاختبار
-        if ($exam->teacher_id != Auth::id()) {
-            abort(403);
-        }
+        // التحقق من أن المستخدم الحالي موجود في جدول الادمن
+        $isAdmin = Admin::where('email', auth()->user()->email)->exists();
+        // أو إذا كان لديك user_id
+        // $isAdmin = Admin::where('user_id', auth()->id())->exists();
 
+        // التحقق من أن المعلم هو صاحب الاختبار
+        $isOwner = $exam->teacher_id == auth()->id();
+
+        if (!$isAdmin && !$isOwner) {
+            abort(403, 'غير مصرح لك بعرض نتائج هذا الاختبار');
+        }
         // جلب نتائج الطلاب
         $results = Result::where('exam_id', $id)
             ->with('student')

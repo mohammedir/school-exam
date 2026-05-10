@@ -41,6 +41,14 @@ Route::middleware('auth:admin')->group(function () {
 
     Route::get('/students/data', [AdminController::class, 'dataStudent'])->name('students.data');
     Route::get('/teacher/data', [AdminController::class, 'dataTeacher'])->name('teacher.data');
+    Route::get('/exams/data', [AdminController::class, 'dataExams'])->name('exams.data');
+    Route::post('/{id}/toggle-publish', [AdminController::class, 'togglePublish'])->name('exams.toggle-publish');
+    Route::get('/admin/exam-results/get/{id}', [TeacherController::class, 'examResults'])
+        ->name('admin.exams.results');
+    Route::get('/admin/exam/{exam}/student/{student}/result',
+        [TeacherController::class, 'studentResult'])
+        ->name('admin.exam.student.result');
+
     Route::post('/admin/logout', [AdminController::class, 'adminLogout'])
         ->name('admin.logout');
 

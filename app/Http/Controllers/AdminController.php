@@ -284,7 +284,175 @@ class AdminController extends Controller
         ]);
     }
 
+    public function dataExams(Request $request)
+    {
+        $query = Exam::with('teacher'); // تحميل علاقة المعلم
 
+        // البحث
+        if ($request->search['value']) {
+            $search = $request->search['value'];
+            $query->where(function($q) use ($search) {
+                $q->where('title', 'like', "%$search%")
+                    ->orWhere('subject', 'like', "%$search%")
+                    ->orWhere('target_category', 'like', "%$search%")
+                    ->orWhereHas('teacher', function($q) use ($search) {
+                        $q->where('full_name', 'like', "%$search%");
+                    });
+            });
+        }
+
+        $recordsFiltered = $query->count();
+
+        // الترتيب
+        $columns = ['teacher_id', 'title', 'scheduled_at', 'duration_minutes', 'action'];
+        $orderColumnIndex = $request->order[0]['column'] ?? 0;
+        $orderColumn = $columns[$orderColumnIndex] ?? 'scheduled_at';
+        $orderDir = $request->order[0]['dir'] ?? 'desc';
+
+        $exams = $query->orderBy($orderColumn, $orderDir)
+            ->skip($request->start)
+            ->take($request->length)
+            ->get();
+
+        $data = [];
+
+        foreach ($exams as $exam) {
+            // تنسيق الفئة المستهدفة - باستخدام switch بدلاً من match
+            $categoryBadge = '';
+            switch($exam->target_category) {
+                case 'scientific':
+                    $categoryBadge = '<span class="bg-blue-100 text-blue-700 px-3 py-1 rounded-full text-xs"><i class="fas fa-flask me-1"></i> علمي</span>';
+                    break;
+                case 'literary':
+                    $categoryBadge = '<span class="bg-green-100 text-green-700 px-3 py-1 rounded-full text-xs"><i class="fas fa-book me-1"></i> أدبي</span>';
+                    break;
+                case 'both':
+                    $categoryBadge = '<span class="bg-purple-100 text-purple-700 px-3 py-1 rounded-full text-xs"><i class="fas fa-users me-1"></i> علمي وأدبي</span>';
+                    break;
+                default:
+                    $categoryBadge = '<span class="bg-gray-100 text-gray-700 px-3 py-1 rounded-full text-xs">غير محدد</span>';
+            }
+
+            // تنسيق حالة النشر
+            $publishedBadge = $exam->is_published
+                ? '<span class="bg-green-100 text-green-700 px-3 py-1 rounded-full text-xs"><i class="fas fa-check-circle me-1"></i> منشور</span>'
+                : '<span class="bg-yellow-100 text-yellow-700 px-3 py-1 rounded-full text-xs"><i class="fas fa-clock me-1"></i> مسودة</span>';
+
+            $data[] = [
+                'teacher_name' => $exam->teacher ? $exam->teacher->full_name : '-',
+                'title' => '
+                <div class="fw-bold">' . e($exam->title) . '</div>
+                <small class="text-muted">' . e($exam->subject) . '</small>
+                <div class="mt-1">' . $categoryBadge . '</div>
+            ',
+                'scheduled_at' => '
+                <div class="d-flex flex-column">
+                    <span><i class="fas fa-calendar-alt me-1 text-muted"></i> ' . date('Y-m-d', strtotime($exam->scheduled_at)) . '</span>
+                    <small class="text-muted"><i class="fas fa-clock me-1"></i> ' . date('h:i A', strtotime($exam->scheduled_at)) . '</small>
+                </div>
+            ',
+                'duration_minutes' => '
+                <span class="badge bg-secondary rounded-pill px-3 py-2">
+                    <i class="fas fa-hourglass-half me-1"></i> ' . $exam->duration_minutes . ' دقيقة
+                </span>
+            ',
+                'status' => $publishedBadge,
+                'action' => '
+                <div class="action-buttons d-flex gap-1">
+                    <a href="' . route('admin.exams.results', $exam->id) . '" class="btn btn-sm btn-gradient rounded-pill px-3" title="عرض النتائج والإحصائيات">
+                        <i class="fas fa-chart-line me-1"></i>
+                        النتائج
+                    </a>
+                    <button class="btn btn-sm btn-outline-warning rounded-pill px-2" onclick="editExam(' . $exam->id . ')" title="تعديل الاختبار">
+                        <i class="fas fa-edit"></i>
+                    </button>
+                    <button class="btn btn-sm btn-outline-success rounded-pill px-2" onclick="togglePublish(' . $exam->id . ', ' . ($exam->is_published ? 'false' : 'true') . ')" title="' . ($exam->is_published ? 'إلغاء النشر' : 'نشر') . '">
+                        <i class="fas ' . ($exam->is_published ? 'fa-eye-slash' : 'fa-eye') . '"></i>
+                    </button>
+                    <button class="btn btn-sm btn-outline-danger rounded-pill px-2" onclick="deleteExam(' . $exam->id . ', \'' . addslashes($exam->title) . '\')" title="حذف">
+                        <i class="fas fa-trash-alt"></i>
+                    </button>
+                </div>
+            '
+            ];
+        }
+
+        return response()->json([
+            "draw" => intval($request->draw),
+            "recordsTotal" => Exam::count(),
+            "recordsFiltered" => $recordsFiltered,
+            "data" => $data
+        ]);
+    }
+
+    public function adminGetExam($id)
+    {
+        try {
+            $exam = Exam::with('questions')
+                ->where('teacher_id', Auth::id())
+                ->findOrFail($id);
+
+            // تنسيق التاريخ ليتوافق مع input type="datetime-local"
+            $scheduled_at = $exam->scheduled_at ? \Carbon\Carbon::parse($exam->scheduled_at)->format('Y-m-d\TH:i') : null;
+
+            $examData = [
+                'id' => $exam->id,
+                'title' => $exam->title,
+                'scheduled_at' => $scheduled_at, // استخدام التنسيق الصحيح
+                'target_category' => $exam->target_category,
+                'duration_minutes' => $exam->duration_minutes,
+                'is_published' => $exam->is_published,
+                'subject' => $exam->subject,
+                'questions' => $exam->questions->map(function($question) {
+                    $options = $question->options;
+                    if (is_string($options)) {
+                        $options = json_decode($options, true);
+                    }
+                    if (!is_array($options)) {
+                        $options = ['', '', '', ''];
+                    }
+
+                    return [
+                        'id' => $question->id,
+                        'question_text' => $question->question_text,
+                        'points' => $question->points,
+                        'options' => $options,
+                        'correct_answer' => $question->correct_answer
+                    ];
+                })
+            ];
+
+            return response()->json([
+                'status' => 'success',
+                'exam' => $examData
+            ]);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'حدث خطأ أثناء جلب بيانات الاختبار: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    public function togglePublish($id)
+    {
+        try {
+            $exam = Exam::findOrFail($id);
+            $exam->is_published = !$exam->is_published;
+            $exam->save();
+
+            return response()->json([
+                'status' => 'success',
+                'message' => $exam->is_published ? 'تم السماح بنشر النتائج' : 'تم إلغاء نشر النتائج'
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'حدث خطأ: ' . $e->getMessage()
+            ], 500);
+        }
+    }
     public function adminLogout(Request $request)
     {
         Auth::guard('admin')->logout();

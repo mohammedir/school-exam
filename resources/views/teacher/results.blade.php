@@ -1,3 +1,4 @@
+@php use App\Models\Admin; @endphp
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
 <head>
@@ -371,11 +372,23 @@
                         </span>
                     </td>
                     <td class="text-center no-print">
-                        <a href="{{ route('teacher.exam.student.result', [$exam->id, $result->student_id]) }}"
-                           class="btn btn-sm btn-primary rounded-pill px-3">
-                            <i class="fas fa-eye me-1"></i>
-                            عرض التفاصيل
-                        </a>
+                        @php
+                            $isAdmin = Admin::where('email', auth()->user()->email)->exists();
+                        @endphp
+
+                        @if($isAdmin)
+                            <a href="{{ route('admin.exam.student.result', [$exam->id, $result->student_id]) }}"
+                               class="btn btn-sm btn-primary rounded-pill px-3">
+                                <i class="fas fa-eye me-1"></i>
+                                عرض التفاصيل (أدمن)
+                            </a>
+                        @else
+                            <a href="{{ route('teacher.exam.student.result', [$exam->id, $result->student_id]) }}"
+                               class="btn btn-sm btn-primary rounded-pill px-3">
+                                <i class="fas fa-eye me-1"></i>
+                                عرض التفاصيل
+                            </a>
+                        @endif
                     </td>
                 </tr>
             @endforeach

@@ -19,6 +19,7 @@ class Exam extends Model
         'subject',
         'results_visible',
         'instructions',
+        'target_category'
     ];
 
     /**

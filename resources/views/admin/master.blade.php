@@ -5,6 +5,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>منصة الاختبارات الثانوية المتكاملة - Bootstrap 5</title>
+    <meta name="csrf-token" content="{{ csrf_token() }}">
 
     <!-- Bootstrap 5 CSS (RTL Support) -->
     <link href="{{asset('assets/css/bootstrap.rtl.min.css')}}" rel="stylesheet">
@@ -353,7 +354,7 @@
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 
 <script>
-    let studentsDataTable, teachersDataTable;
+    let studentsDataTable, teachersDataTable,examDataTable;
     let studentBsModal, teacherBsModal,editTeacherBsModal;
     let currentMode = 'add'; // 'add' أو 'edit'
     const arabicDataTable = {
@@ -471,6 +472,47 @@
                 { data: 'subject_specialization', name: 'subject_specialization', className: 'text-center' },
                 { data: 'phone_number', name: 'phone_number', className: 'text-center' },
                 { data: 'status', name: 'status', className: 'text-center', orderable: false },
+                { data: 'action', name: 'action', orderable: false, searchable: false, className: 'text-center' }
+            ],
+            language: arabicDataTable, // استخدام الترجمة المضمنة
+            responsive: true,
+            order: [[0, 'asc']], // ترتيب حسب اسم المعلم (العمود الأول)
+            pageLength: 10,
+            lengthMenu: [[10, 25, 50, 100, -1], [10, 25, 50, 100, "الكل"]],
+            drawCallback: function() {
+                // تحديث العدد الإجمالي بعد كل تحديث
+                let info = this.api().page.info();
+                if ($('#totalTeachersCount').length) {
+                    $('#totalTeachersCount').text(info.recordsTotal);
+                }
+            }
+        });
+        examDataTable = $('#exams-table').DataTable({
+            processing: true,
+            serverSide: true,
+            ajax: {
+                url: "{{ route('exams.data') }}",
+                type: "GET",
+                dataSrc: function(json) {
+                    if (json.recordsTotal) {
+                        $('#totalTeachersCount').text(json.recordsTotal);
+                    }
+                    return json.data;
+                },
+                error: function(xhr, error, code) {
+                    console.log("خطأ في التحميل:", error);
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'خطأ',
+                        text: 'حدث خطأ في تحميل بيانات المعلمين'
+                    });
+                }
+            },
+            columns: [
+                { data: 'teacher_name', name: 'teacher_name', className: 'text-center' },
+                { data: 'title', name: 'title', className: 'text-center' },
+                { data: 'scheduled_at', name: 'scheduled_at', className: 'text-center' },
+                { data: 'duration_minutes', name: 'duration_minutes', className: 'text-center', orderable: false },
                 { data: 'action', name: 'action', orderable: false, searchable: false, className: 'text-center' }
             ],
             language: arabicDataTable, // استخدام الترجمة المضمنة
@@ -758,6 +800,40 @@
         if (teacherBsModal) teacherBsModal.show();
     }
 
+    function togglePublish(id, publish) {
+        let url = '{{ route("exams.toggle-publish", ":id") }}'.replace(':id', id);
+
+        $.ajax({
+            url: url,
+            type: 'POST',
+            data: {
+                is_published: publish
+            },
+            headers: {
+                'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
+            },
+            success: function(response) {
+                if(response.status === 'success') {
+                    $('#exams-table').DataTable().ajax.reload();
+                    Swal.fire({
+                        icon: 'success',
+                        title: 'تم التحديث',
+                        text: response.message,
+                        timer: 1500,
+                        showConfirmButton: false
+                    });
+                }
+            },
+            error: function(xhr) {
+                console.log(xhr);
+                if(xhr.status === 419) {
+                    toastr.error('انتهت صلاحية الجلسة، يرجى تحديث الصفحة');
+                } else {
+                    toastr.error('حدث خطأ أثناء تغيير حالة النشر');
+                }
+            }
+        });
+    }
     // حفظ الطالب
     function saveStudent() {
 

@@ -103,6 +103,36 @@
         </div>
     </div>
 
+    <!-- جدول الاختبارات -->
+    <div class="card shadow-sm border-0 rounded-4 mb-5 fade-in">
+        <div class="card-header bg-white border-0 pt-4 pb-2 d-flex flex-wrap justify-content-between align-items-center">
+            <div>
+                <h4 class="fw-bold mb-0">
+                    <i class="fas fa-chalkboard-user text-indigo-600 me-2"></i>قاعدة بيانات الاختبارت
+                </h4>
+            </div>
+            <button onclick="openExamModal()" class="btn btn-indigo rounded-pill px-4 shadow-sm">
+                <i class="fas fa-plus me-2"></i>إضافة اختبار
+            </button>
+        </div>
+        <div class="card-body pt-0">
+            <div class="table-responsive">
+                <table id="exams-table" class="table table-hover align-middle w-100">
+                    <thead class="table-light">
+                    <tr>
+                        <th><i class="fas fa-user-tie me-1"></i> اسم المعلم</th>
+                        <th><i class="fas fa-book me-1"></i> عنوان الاختبار</th>
+                        <th><i class="fas fa-phone me-1"></i>تاريخ الاختبار</th>
+                        <th><i class="fas fa-toggle-on me-1"></i> مدة الاختبار </th>
+                        <th><i class="fas fa-cog me-1"></i> الإجراءات</th>
+                    </tr>
+                    </thead>
+                    <tbody></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
 
     <!-- مراقبة الاختبارات -->
    {{-- <div class="card shadow-sm border-0 rounded-4 fade-in">
